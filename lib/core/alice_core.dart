@@ -2,14 +2,15 @@ import 'dart:async';
 
 import 'package:alice/core/alice_utils.dart';
 import 'package:alice/helper/alice_save_helper.dart';
-import 'package:alice/model/alice_http_error.dart';
 import 'package:alice/model/alice_http_call.dart';
+import 'package:alice/model/alice_http_error.dart';
 import 'package:alice/model/alice_http_response.dart';
 import 'package:alice/ui/page/alice_calls_list_screen.dart';
 import 'package:alice/utils/shake_detector.dart';
 import 'package:collection/collection.dart' show IterableExtension;
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+// import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:rxdart/rxdart.dart';
 
 class AliceCore {
@@ -25,8 +26,7 @@ class AliceCore {
   final bool darkTheme;
 
   /// Rx subject which contains all intercepted http calls
-  final BehaviorSubject<List<AliceHttpCall>> callsSubject =
-      BehaviorSubject.seeded([]);
+  final BehaviorSubject<List<AliceHttpCall>> callsSubject = BehaviorSubject.seeded([]);
 
   /// Icon url for notification
   final String notificationIcon;
@@ -89,32 +89,30 @@ class AliceCore {
 
   void _initializeNotificationsPlugin() {
     _flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
-    final initializationSettingsAndroid =
-        AndroidInitializationSettings(notificationIcon);
-    const initializationSettingsIOS = IOSInitializationSettings();
+    final initializationSettingsAndroid = AndroidInitializationSettings(notificationIcon);
+    const initializationSettingsIOS = DarwinInitializationSettings();
     final initializationSettings = InitializationSettings(
       android: initializationSettingsAndroid,
       iOS: initializationSettingsIOS,
     );
     _flutterLocalNotificationsPlugin.initialize(
       initializationSettings,
-      onSelectNotification: _onSelectedNotification,
+      onDidReceiveNotificationResponse: _onSelectedNotification,
     );
   }
 
   void _onCallsChanged() async {
     if (callsSubject.value.isNotEmpty) {
       _notificationMessage = _getNotificationMessage();
-      if (_notificationMessage != _notificationMessageShown &&
-          !_notificationProcessing) {
+      if (_notificationMessage != _notificationMessageShown && !_notificationProcessing) {
         await _showLocalNotification();
         _onCallsChanged();
       }
     }
   }
 
-  Future<void> _onSelectedNotification(String? payload) async {
-    assert(payload != null, "payload can't be null");
+  Future<void> _onSelectedNotification(NotificationResponse? notificationResponse) async {
+    assert(notificationResponse?.payload != null, "payload can't be null");
     navigateToCallListScreen();
     return;
   }
@@ -147,36 +145,26 @@ class AliceCore {
     final List<AliceHttpCall> calls = callsSubject.value;
     final int successCalls = calls
         .where(
-          (call) =>
-              call.response != null &&
-              call.response!.status! >= 200 &&
-              call.response!.status! < 300,
+          (call) => call.response != null && call.response!.status! >= 200 && call.response!.status! < 300,
         )
         .toList()
         .length;
 
     final int redirectCalls = calls
         .where(
-          (call) =>
-              call.response != null &&
-              call.response!.status! >= 300 &&
-              call.response!.status! < 400,
+          (call) => call.response != null && call.response!.status! >= 300 && call.response!.status! < 400,
         )
         .toList()
         .length;
 
     final int errorCalls = calls
         .where(
-          (call) =>
-              call.response != null &&
-              call.response!.status! >= 400 &&
-              call.response!.status! < 600,
+          (call) => call.response != null && call.response!.status! >= 400 && call.response!.status! < 600,
         )
         .toList()
         .length;
 
-    final int loadingCalls =
-        calls.where((call) => call.loading).toList().length;
+    final int loadingCalls = calls.where((call) => call.loading).toList().length;
 
     final StringBuffer notificationsMessage = StringBuffer();
     if (loadingCalls > 0) {
@@ -218,8 +206,10 @@ class AliceCore {
       playSound: false,
       largeIcon: DrawableResourceAndroidBitmap(notificationIcon),
     );
-    const iOSPlatformChannelSpecifics =
-        IOSNotificationDetails(presentSound: false);
+
+    const iOSPlatformChannelSpecifics = DarwinNotificationDetails(
+      presentSound: false,
+    );
     final platformChannelSpecifics = NotificationDetails(
       android: androidPlatformChannelSpecifics,
       iOS: iOSPlatformChannelSpecifics,
@@ -278,8 +268,7 @@ class AliceCore {
     }
     selectedCall.loading = false;
     selectedCall.response = response;
-    selectedCall.duration = response.time.millisecondsSinceEpoch -
-        selectedCall.request!.time.millisecondsSinceEpoch;
+    selectedCall.duration = response.time.millisecondsSinceEpoch - selectedCall.request!.time.millisecondsSinceEpoch;
 
     callsSubject.add([...callsSubject.value]);
   }
@@ -296,8 +285,7 @@ class AliceCore {
     callsSubject.add([]);
   }
 
-  AliceHttpCall? _selectCall(int requestId) =>
-      callsSubject.value.firstWhereOrNull((call) => call.id == requestId);
+  AliceHttpCall? _selectCall(int requestId) => callsSubject.value.firstWhereOrNull((call) => call.id == requestId);
 
   /// Save all calls to file
   void saveHttpRequests(BuildContext context) {

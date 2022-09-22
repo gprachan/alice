@@ -8,7 +8,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  chopper: ^4.0.1
+  chopper: ^5.0.0
+  platform: ^3.1.0
+  visibility_detector: ^0.3.3
   path_provider:
 
 dev_dependencies:
